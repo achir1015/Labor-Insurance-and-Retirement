@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>個人勞保勞退查詢系統</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE0IiBmaWxsPSIjMUY0RjQ3Ii8+CjxyZWN0IHg9IjE2IiB5PSI5IiB3aWR0aD0iMzIiIGhlaWdodD0iNDYiIHJ4PSI0IiBmaWxsPSIjRjVGNkY0Ii8+CjxyZWN0IHg9IjI1IiB5PSI1IiB3aWR0aD0iMTQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiMyQjZFNjMiLz4KPHBhdGggZD0iTTIyIDMxIEwyOSAzOCBMNDQgMjEiIHN0cm9rZT0iIzJCNkU2MyIgc3Ryb2tlLXdpZHRoPSI0LjUiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cmVjdCB4PSIyMiIgeT0iNDMiIHdpZHRoPSIyMCIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iI0M5N0IzRCIvPgo8L3N2Zz4=">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE0IiBmaWxsPSIjMUY0RjQ3Ii8+CjxyZWN0IHg9IjE2IiB5PSI5IiB3aWR0aD0iMzIiIGhlaWdodD0iNDYiIHJ4PSI0IiBmaWxsPSIjRjVGNkY0Ii8+CjxyZWN0IHg9IjI1IiB5PSI1IiB3aWR0aD0iMTQiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiMyQjZFNjMiLz4KPHBhdGggZD0iTTIyIDMxIEwyOSAzOCBMNDQgMjEiIHN0cm9rZT0iIzJCNkU2MyIgc3Ryb2tlLXdpZHRoPSI0LjUiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8cmVjdCB4PSIyMiIgeT0iNDMiIHdpZHRoPSIyMCIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iI0M5N0IzRCIvPgo8L3N2Zz4=">
+<meta name="theme-color" content="#1F4F47">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="勞保勞退查詢">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -166,6 +173,14 @@
   .auth-switch a{color:var(--primary);cursor:pointer;text-decoration:underline;}
   .userbar{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-muted);}
   .userbar .btn.secondary{padding:6px 12px;font-size:12px;}
+
+  /* ---------- 老年給付試算 ---------- */
+  .calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0;}
+  .calc-grid label{display:block;font-size:12.5px;color:var(--text-muted);margin-bottom:5px;}
+  .calc-grid input, .calc-grid select{
+    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;
+    font-size:14px;font-family:inherit;box-sizing:border-box;background:#fff;color:var(--text);
+  }
 </style>
 </head>
 <body>
@@ -199,6 +214,7 @@
     <button class="nav-btn" data-view="national">國保記錄</button>
     <button class="nav-btn" data-view="pension">勞退個人專戶</button>
     <button class="nav-btn" data-view="import">資料轉換小工具</button>
+    <button class="nav-btn" data-view="calc">老年給付試算</button>
     <button class="nav-btn" data-view="help">使用說明</button>
     <div class="sidebar-foot">資料會存進你登入帳號專屬的雲端資料庫，<br>只有你自己登入後看得到。</div>
   </aside>
@@ -308,6 +324,52 @@
 2	09000004H	行政院勞工委員會職業訓練局青年職業訓練中心	6,600	6,600	078/08/05"></textarea>
         <div style="margin:10px 0;"><button class="btn" id="btnConvert">轉換成 XML</button></div>
         <pre id="importOutput">（轉換結果會顯示在這裡）</pre>
+      </div>
+    </section>
+
+    <!-- 老年給付試算 -->
+    <section class="view" id="view-calc">
+      <div class="panel">
+        <h2>勞工保險老年給付金額試算</h2>
+        <p class="note">
+          依勞保局公告的公式試算，僅供參考，正式金額請以勞保局官方試算或核定為準：
+          <a href="https://edesk.bli.gov.tw/me/#/na/spreadsheet/labor-insurance" target="_blank" rel="noopener">edesk.bli.gov.tw 老年給付試算</a>
+        </p>
+        <div class="calc-grid">
+          <div>
+            <label>平均月投保薪資（退保前最高60個月平均）</label>
+            <input type="number" id="calcAvgSalary60" placeholder="例如 45800">
+          </div>
+          <div>
+            <label>保險年資 － 年</label>
+            <input type="number" id="calcYears" placeholder="例如 35" min="0">
+          </div>
+          <div>
+            <label>保險年資 － 月</label>
+            <input type="number" id="calcMonths" placeholder="例如 8" min="0" max="11">
+          </div>
+          <div>
+            <label>展延（+）或減給（－）百分比</label>
+            <input type="number" id="calcAdjustPct" placeholder="0" value="0">
+          </div>
+          <div>
+            <label>98年1月1日前是否有保險年資？</label>
+            <select id="calcHasPre98">
+              <option value="no">否</option>
+              <option value="yes">是</option>
+            </select>
+          </div>
+          <div>
+            <label>平均月投保薪資（退保前36個月平均，方式三適用）</label>
+            <input type="number" id="calcAvgSalary36" placeholder="留空則沿用60個月平均">
+          </div>
+        </div>
+        <div style="margin:14px 0;"><button class="btn" id="btnCalc">試算</button></div>
+        <div id="calcResult"></div>
+        <div class="note" style="margin-top:16px;">
+          展延年金：法定請領年齡後每延後1年增給4%，最多20%；減給年金：每提前1年減給4%，最多提前5年（減給20%）——
+          這兩項需要你的出生日期才能精算，這裡先讓你自己填百分比；方式三的「60歲後繼續工作最高50個月」細節規則目前沒有幫你判斷，需要另外核對。
+        </div>
       </div>
     </section>
 
@@ -719,6 +781,20 @@ function renderAll() {
   renderLabor();
   renderNational();
   renderPension();
+  renderCalcDefaults();
+}
+
+function renderCalcDefaults() {
+  const d = currentData;
+  const latest = [...d.laborRecords].sort((a, b) => (b.effectiveDate||0) - (a.effectiveDate||0))[0];
+  const salaryInput = document.getElementById('calcAvgSalary60');
+  if (salaryInput && latest && latest.laborSalary) {
+    salaryInput.placeholder = `例如 ${latest.laborSalary}（最新一筆投保薪資，僅供參考，非60個月平均）`;
+  }
+  const yearsInput = document.getElementById('calcYears');
+  if (yearsInput && d.officialLaborTenure) {
+    yearsInput.title = `官方公告投保年資：${d.officialLaborTenure}（請自行換算成年＋月填入）`;
+  }
 }
 
 function renderOverview() {
@@ -940,6 +1016,73 @@ document.getElementById('btnConvert').addEventListener('click', () => {
   }
   document.getElementById('importOutput').textContent = xml;
 });
+
+/* =========================================================
+   老年給付金額試算（依勞保局公告公式，僅供參考）
+   ========================================================= */
+function calcOldAgeBenefit() {
+  const avg60 = Number(document.getElementById('calcAvgSalary60').value) || 0;
+  const years = Number(document.getElementById('calcYears').value) || 0;
+  const months = Number(document.getElementById('calcMonths').value) || 0;
+  const adjustPct = Number(document.getElementById('calcAdjustPct').value) || 0;
+  const hasPre98 = document.getElementById('calcHasPre98').value === 'yes';
+  const avg36Input = document.getElementById('calcAvgSalary36').value;
+  const avg36 = avg36Input ? Number(avg36Input) : avg60;
+
+  const resultEl = document.getElementById('calcResult');
+  if (avg60 <= 0 || (years === 0 && months === 0)) {
+    resultEl.innerHTML = '<p class="note">請先填寫平均月投保薪資與保險年資，再按「試算」。</p>';
+    return;
+  }
+
+  const totalYears = years + months / 12;
+  let html = '';
+
+  // 方式一：老年年金給付（按月領）－ 年資需滿15年
+  const formula1 = avg60 * totalYears * 0.0155 + 3000;
+  const formula2 = avg60 * totalYears * 0.0155;
+  const better = Math.max(formula1, formula2);
+  const adjusted = better * (1 + adjustPct / 100);
+  html += `
+    <div class="panel" style="margin-top:16px;">
+      <h3>方式一：老年年金給付（按月領）－ 年資需滿15年</h3>
+      ${totalYears >= 15 ? `
+        <p>公式1（平均薪資 × 年資 × 1.55% ＋ 3,000元）：${formatMoney(formula1)} / 月</p>
+        <p>公式2（平均薪資 × 年資 × 1.55%）：${formatMoney(formula2)} / 月</p>
+        <p>擇優發給：<b>${formatMoney(better)} / 月</b></p>
+        ${adjustPct != 0 ? `<p>依填寫的展延/減給 ${adjustPct}% 調整後：<b>${formatMoney(adjusted)} / 月</b></p>` : ''}
+      ` : `<p class="note">保險年資未滿15年，不符合按月領年金資格，可參考下方「方式二」。</p>`}
+    </div>`;
+
+  // 方式二：老年一次金給付（年資未滿15年適用）
+  html += `
+    <div class="panel" style="margin-top:16px;">
+      <h3>方式二：老年一次金給付 － 年資未滿15年適用</h3>
+      ${totalYears < 15 ? (() => {
+          const monthsPaid = totalYears; // 每滿1年發1個月，未滿1年按比例，等同年資的月數換算
+          const amount = avg60 * monthsPaid;
+          return `<p>發給月數（年資每滿1年發1個月，未滿1年按比例）：約 ${monthsPaid.toFixed(2)} 個月</p>
+                  <p>金額：平均薪資 × 月數 ＝ <b>${formatMoney(amount)}</b>（一次領）</p>`;
+        })() : `<p class="note">保險年資已滿15年，依規定應請領「老年年金給付」，不適用一次金。</p>`}
+    </div>`;
+
+  // 方式三：一次請領老年給付（98年1月1日前有保險年資者適用）
+  html += `
+    <div class="panel" style="margin-top:16px;">
+      <h3>方式三：一次請領老年給付 － 98年1月1日前有保險年資者適用</h3>
+      ${hasPre98 ? (() => {
+          let monthsPaid = totalYears <= 15 ? totalYears : 15 + (totalYears - 15) * 2;
+          const capped = Math.min(monthsPaid, 45);
+          const amount = avg36 * capped;
+          return `<p>發給月數（年資前15年每年1個月，超過部分每年2個月，上限45個月）：${capped.toFixed(2)} 個月</p>
+                  <p>金額：退保前36個月平均月投保薪資 × 月數 ＝ <b>${formatMoney(amount)}</b>（一次領）</p>
+                  <p class="note">60歲後繼續工作者上限可放寬到50個月，這裡沒有幫你判斷是否適用，需要另外核對官方試算。</p>`;
+        })() : `<p class="note">你選擇「98年1月1日前無保險年資」，不適用此方式。</p>`}
+    </div>`;
+
+  resultEl.innerHTML = html;
+}
+document.getElementById('btnCalc').addEventListener('click', calcOldAgeBenefit);
 
 /* =========================================================
    初始化：優先讀網址參數 ?data=，讀不到才用內建範例資料
