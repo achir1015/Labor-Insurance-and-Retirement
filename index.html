@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>個人勞保勞退查詢系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F4;
+    --surface:#FFFFFF;
+    --border:#DEE3DE;
+    --text:#1E2B22;
+    --text-muted:#5B6B60;
+    --primary:#2B6E63;
+    --primary-dark:#1F4F47;
+    --primary-soft:#E6EEEC;
+    --accent:#C97B3D;
+    --accent-soft:#F6E9DC;
+    --danger:#B3492F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+  }
+  h1,h2,h3{font-family:'Noto Serif TC','Noto Sans TC',serif;margin:0 0 8px;font-weight:700;}
+  h1{font-size:20px;}
+  h2{font-size:17px;color:var(--primary-dark);}
+  h3{font-size:14px;color:var(--text-muted);font-weight:500;}
+  p{margin:0 0 8px;}
+
+  #app{display:flex;min-height:100vh;}
+
+  /* ---------- 側邊導覽 ---------- */
+  .sidebar{
+    width:230px;flex-shrink:0;
+    background:var(--primary-dark);
+    color:#EFF5F3;
+    padding:24px 16px;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .brand{margin-bottom:24px;padding-left:8px;}
+  .brand .kicker{font-size:12px;color:#B7D6CE;letter-spacing:.05em;}
+  .brand h1{color:#fff;margin-top:2px;}
+  .nav-btn{
+    display:block;width:100%;text-align:left;
+    background:transparent;border:none;color:#DCE9E5;
+    padding:10px 12px;border-radius:8px;font-size:14px;
+    cursor:pointer;transition:background .15s ease;
+  }
+  .nav-btn:hover{background:rgba(255,255,255,.08);}
+  .nav-btn.active{background:var(--primary);color:#fff;font-weight:700;}
+  .sidebar-foot{margin-top:auto;font-size:11px;color:#9FC2BA;padding-left:8px;}
+
+  /* ---------- 主要內容 ---------- */
+  main{flex:1;min-width:0;padding:24px 32px 60px;}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:12px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:14px 18px;margin-bottom:24px;
+  }
+  .topbar .status{font-size:13px;color:var(--text-muted);}
+  .topbar .status b{color:var(--text);}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--primary);color:#fff;border:none;
+    padding:9px 16px;border-radius:7px;font-size:13px;font-weight:500;
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--primary-dark);}
+  .btn.secondary{background:var(--surface);color:var(--primary-dark);border:1px solid var(--primary);}
+  .btn.secondary:hover{background:var(--primary-soft);}
+  input[type=file]{display:none;}
+
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:26px;}
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:16px 18px;
+  }
+  .card .label{font-size:12px;color:var(--text-muted);margin-bottom:6px;}
+  .card .value{font-size:22px;font-weight:700;color:var(--primary-dark);}
+  .card .sub{font-size:12px;color:var(--text-muted);margin-top:4px;}
+
+  .panel{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:20px 22px;margin-bottom:22px;
+  }
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .toolbar input[type=text], .toolbar select{
+    padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;
+    font-family:inherit;background:#fff;color:var(--text);
+  }
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  .table-scroll{overflow-x:auto;}
+  .table-scroll table{min-width:760px;}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);}
+  th{color:var(--text-muted);font-weight:500;font-size:12px;background:#FAFBFA;}
+  tr:hover td{background:#FAFBF9;}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+  .tag.labor{background:var(--primary-soft);color:var(--primary-dark);}
+  .tag.employ{background:var(--accent-soft);color:var(--accent);}
+  .tag.occ{background:#E9E6F5;color:#5B4E9C;}
+  .empty{color:var(--text-muted);font-size:13px;padding:20px 0;text-align:center;}
+
+  .chart-wrap{overflow-x:auto;padding-top:6px;}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:160px;min-width:320px;}
+  .bar-col{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);width:38px;}
+  .bar{width:22px;background:var(--primary);border-radius:3px 3px 0 0;position:relative;}
+  .bar.self{background:var(--accent);}
+
+  textarea{
+    width:100%;min-height:110px;font-family:'Courier New',monospace;font-size:12.5px;
+    border:1px solid var(--border);border-radius:6px;padding:10px;resize:vertical;
+  }
+  pre{
+    background:#F5F6F4;border:1px solid var(--border);border-radius:6px;
+    padding:12px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;
+  }
+  code{background:#EEF1EE;padding:1px 5px;border-radius:4px;font-size:12.5px;}
+  ul.help li{margin-bottom:6px;}
+
+  .note{font-size:12px;color:var(--text-muted);border-left:3px solid var(--accent);padding:8px 12px;background:var(--accent-soft);border-radius:0 6px 6px 0;margin:10px 0;}
+
+  @media (max-width: 720px){
+    #app{flex-direction:column;}
+    .sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:14px;align-items:center;}
+    .brand{display:none;}
+    .sidebar-foot{display:none;}
+    .nav-btn{white-space:nowrap;}
+    main{padding:18px;}
+  }
+
+  /* ---------- 登入畫面 ---------- */
+  #authOverlay{
+    position:fixed;inset:0;background:var(--primary-dark);
+    display:flex;align-items:center;justify-content:center;z-index:100;
+  }
+  .auth-box{
+    background:var(--surface);border-radius:12px;padding:32px 30px;
+    width:100%;max-width:340px;box-sizing:border-box;
+  }
+  .auth-box h1{color:var(--primary-dark);font-size:19px;margin-bottom:4px;}
+  .auth-box p.sub{font-size:12.5px;color:var(--text-muted);margin-bottom:20px;}
+  .auth-box label{display:block;font-size:12.5px;color:var(--text-muted);margin-bottom:4px;}
+  .auth-box input{
+    width:100%;padding:9px 10px;margin-bottom:14px;border:1px solid var(--border);
+    border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;
+  }
+  .auth-box .btn{width:100%;justify-content:center;margin-bottom:8px;}
+  .auth-error{color:var(--danger);font-size:12.5px;margin:-6px 0 14px;min-height:16px;}
+  .auth-switch{font-size:12.5px;text-align:center;color:var(--text-muted);}
+  .auth-switch a{color:var(--primary);cursor:pointer;text-decoration:underline;}
+  .userbar{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-muted);}
+  .userbar .btn.secondary{padding:6px 12px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<div id="authOverlay">
+  <div class="auth-box">
+    <h1>勞保 · 勞退查詢系統</h1>
+    <p class="sub">登入後資料會存到你自己的雲端帳號，換裝置也看得到。</p>
+    <label for="authEmail">Email</label>
+    <input type="email" id="authEmail" autocomplete="username">
+    <label for="authPassword">密碼</label>
+    <input type="password" id="authPassword" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <button class="btn" id="btnSignIn">登入</button>
+    <button class="btn secondary" id="btnRegister">用這組 Email 註冊新帳號</button>
+    <div class="auth-switch" style="margin-top:10px;">
+      忘記密碼？<a id="btnResetPw">寄送重設密碼信</a>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="kicker">個人資料查詢</div>
+      <h1>勞保 · 勞退<br>查詢系統</h1>
+    </div>
+    <button class="nav-btn active" data-view="overview">總覽</button>
+    <button class="nav-btn" data-view="labor">勞保 / 就保記錄</button>
+    <button class="nav-btn" data-view="national">國保記錄</button>
+    <button class="nav-btn" data-view="pension">勞退個人專戶</button>
+    <button class="nav-btn" data-view="import">資料轉換小工具</button>
+    <button class="nav-btn" data-view="help">使用說明</button>
+    <div class="sidebar-foot">資料會存進你登入帳號專屬的雲端資料庫，<br>只有你自己登入後看得到。</div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="status" id="fileStatus">尚未載入資料，目前顯示<b>範例資料</b>。</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="userbar">
+          <span id="userEmailLabel"></span>
+          <button class="btn secondary" id="btnLogout">登出</button>
+        </div>
+        <button class="btn secondary" id="btnCloudReload">從雲端重新載入</button>
+        <button class="btn" id="btnCloudSave">儲存到雲端</button>
+        <button class="btn secondary" id="btnDownloadSample">下載範例 XML</button>
+        <label class="btn" for="fileInput">選擇 XML 檔案匯入</label>
+        <input type="file" id="fileInput" accept=".xml">
+      </div>
+    </div>
+
+    <!-- 總覽 -->
+    <section class="view active" id="view-overview">
+      <div class="cards" id="overviewCards"></div>
+      <div class="panel">
+        <h2>最新異動紀錄</h2>
+        <div class="table-scroll">
+        <table id="latestLaborTable">
+          <thead><tr><th>投保單位名稱</th><th>生效日期</th><th>退保日期</th><th>勞就保投保薪資</th><th>災保投保薪資</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 勞保就保記錄 -->
+    <section class="view" id="view-labor">
+      <div class="panel">
+        <h2>勞保 / 就保 / 職災保險記錄</h2>
+        <div class="toolbar">
+          <input type="text" id="laborSearch" placeholder="搜尋投保單位或保險證號…">
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>序號</th><th>保險證號</th><th>投保單位名稱</th><th>勞就保投保薪資</th>
+            <th>災保投保薪資</th><th>生效日期</th><th>退保日期</th><th>備註</th><th>單位欠費註記</th>
+          </tr></thead>
+          <tbody id="laborTableBody"></tbody>
+        </table>
+        </div>
+        <div class="empty" id="laborEmpty" style="display:none;">沒有符合條件的記錄</div>
+      </div>
+    </section>
+
+    <!-- 國保記錄 -->
+    <section class="view" id="view-national">
+      <div class="panel">
+        <h2>國保最新異動紀錄</h2>
+        <table>
+          <thead><tr><th>序號</th><th>異動別</th><th>納退保日期</th><th>納退保原因</th><th>備註</th></tr></thead>
+          <tbody id="nationalTableBody"></tbody>
+        </table>
+        <div class="empty" id="nationalEmpty" style="display:none;">沒有國保記錄</div>
+      </div>
+    </section>
+
+    <!-- 勞退個人專戶 -->
+    <section class="view" id="view-pension">
+      <div class="cards" id="pensionCards"></div>
+      <div class="panel">
+        <h2>提繳異動紀錄</h2>
+        <p class="note">每次雇主變更、提繳工資調整都會多一筆紀錄；雇主提繳金額大致等於「月提繳工資 × 雇主提繳率」，個人提繳金額等於「月提繳工資 × 個人自願提繳率」，實際入帳金額仍以勞保局公告為準。</p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>序號</th><th>提繳單位編號</th><th>提繳單位名稱</th><th>異動別</th>
+            <th>生效日期</th><th>月提繳工資</th><th>提繳身份別</th><th>雇主提繳率(%)</th><th>個人自願提繳率(%)</th>
+          </tr></thead>
+          <tbody id="pensionTableBody"></tbody>
+        </table>
+        </div>
+        <div class="empty" id="pensionEmpty" style="display:none;">沒有提繳異動紀錄</div>
+      </div>
+    </section>
+
+    <!-- 資料轉換小工具 -->
+    <section class="view" id="view-import">
+      <div class="panel">
+        <h2>把勞保局網站的表格轉成 XML 片段</h2>
+        <p class="note">
+          用法：<b>不要把網頁的表格直接貼到下面的欄位</b>，因為大部分瀏覽器直接複製表格時會弄丟欄位結構
+          （每一格文字會各自變成一行，不是一列一筆）。正確作法是：先把
+          <code>edesk.bli.gov.tw</code> 上的表格選取起來複製，<b>貼到 Google Sheets 或 Excel 的空白列</b>，
+          這樣表格會正確還原成一列一筆、欄位對齊；接著只選取需要的那幾欄、複製，再貼到下面的欄位。
+          這個工具只在你的瀏覽器裡把文字轉成 XML，不會送出任何資料。轉好之後，把產生的片段貼回你自己保存的主 XML 檔案裡對應的位置即可。
+        </p>
+        <p class="note">欄位之間請務必用 <b>Tab</b> 分隔（從 Google Sheets／Excel 複製貼上就會自動是 Tab），不要用逗號——金額常有千分位逗點，逗號分隔會把數字拆錯。</p>
+        <div class="toolbar">
+          <select id="importType">
+            <option value="labor">勞保 / 就保 / 職災記錄（序號, 保險證號, 投保單位名稱, 勞就保投保薪資, 災保投保薪資, 生效日期, 退保日期, 備註, 單位欠費註記）</option>
+            <option value="national">國保最新異動紀錄（序號, 異動別, 納退保日期, 納退保原因, 備註）</option>
+            <option value="contribution">勞退提繳異動紀錄（序號, 提繳單位編號, 提繳單位名稱, 異動別, 生效日期, 月提繳工資, 提繳身份別, 雇主提繳率, 個人自願提繳率）</option>
+          </select>
+        </div>
+        <textarea id="importInput" placeholder="範例（欄位之間用 Tab 分隔，從 Google Sheets／Excel 複製貼上即可）：
+1	01010351A	榮民工程股份有限公司	3,360	3,360	069/06/25
+2	09000004H	行政院勞工委員會職業訓練局青年職業訓練中心	6,600	6,600	078/08/05"></textarea>
+        <div style="margin:10px 0;"><button class="btn" id="btnConvert">轉換成 XML</button></div>
+        <pre id="importOutput">（轉換結果會顯示在這裡）</pre>
+      </div>
+    </section>
+
+    <!-- 使用說明 -->
+    <section class="view" id="view-help">
+      <div class="panel">
+        <h2>這個系統在做什麼</h2>
+        <p>
+          這是一個查詢頁面，用來瀏覽你自己整理的勞保、就保、國保與勞退資料。登入之後，
+          資料會存進你自己 Firebase 專案裡的 Firestore 資料庫（只有登入這個帳號的人看得到，不是公開資料庫），
+          換電腦、換瀏覽器登入同一個帳號也能看到一樣的資料。資料來源不是即時連線勞保局，而是你自己從
+          <code>edesk.bli.gov.tw</code> 網站上手動複製、整理好之後，用「選擇 XML 檔案匯入」或「資料轉換小工具」放進系統，
+          再按「儲存到雲端」存起來。</p>
+        <ul class="help">
+          <li>「儲存到雲端」會把畫面上目前的資料整份覆蓋掉雲端原本存的內容，請確認資料是對的再按。</li>
+          <li>「從雲端重新載入」可以放棄畫面上還沒存檔的修改，重新讀回雲端上次存的版本。</li>
+        </ul>
+        <h2>用網址參數自動載入資料</h2>
+        <p>
+          如果你把自己的 XML 檔案放在一個可以直接打開、且允許跨網站讀取（CORS）的網址上
+          （例如 GitHub 上的 raw 檔案連結、Gist 的 raw 連結，或是你自己網站上的一個檔案），
+          可以在這個頁面的網址後面加上 <code>?data=</code> 參數，頁面打開時就會自動抓那個網址的內容來顯示，
+          不用每次手動選檔案。例如：
+        </p>
+        <pre>index.html?data=https://raw.githubusercontent.com/你的帳號/你的repo/main/我的勞保資料.xml</pre>
+        <ul class="help">
+          <li>網址裡的網址要用 <code>encodeURIComponent(...)</code> 編碼一次，避免特殊符號被誤判。</li>
+          <li>Google Drive 分享連結大多<b>不支援</b> CORS，直接放上去通常會讀取失敗；GitHub raw 連結一般可以正常運作。</li>
+          <li>如果自動載入失敗（例如該網址不允許跨站讀取），頁面上方會顯示錯誤訊息，並繼續顯示範例資料，不影響你手動選檔案的用法。</li>
+          <li>因為資料是用 <code>fetch</code> 從指定網址取得，內容仍留在你的瀏覽器裡處理，這個頁面本身不會把資料送到任何其他伺服器。</li>
+        </ul>
+        <h2>資料檔案的結構</h2>
+        <p>整份資料放在一個 XML 檔案裡，結構大致如下——「勞保就保記錄」的欄位直接對應勞保局網站上「勞工保險最新異動紀錄」那張表格：</p>
+        <pre>&lt;勞保勞退查詢資料&gt;
+  &lt;基本資料&gt;
+    &lt;姓名&gt;...&lt;/姓名&gt;
+    &lt;資料更新日期&gt;2026-09-01&lt;/資料更新日期&gt;
+    &lt;官方投保年資&gt;35年8天&lt;/官方投保年資&gt;
+    &lt;官方國保年資&gt;0年8個月&lt;/官方國保年資&gt;
+  &lt;/基本資料&gt;
+
+  &lt;勞保就保記錄&gt;
+    &lt;記錄&gt;
+      &lt;序號&gt;1&lt;/序號&gt;
+      &lt;保險證號&gt;01010351A&lt;/保險證號&gt;
+      &lt;投保單位名稱&gt;...&lt;/投保單位名稱&gt;
+      &lt;勞就保投保薪資&gt;36300&lt;/勞就保投保薪資&gt;
+      &lt;災保投保薪資&gt;36300&lt;/災保投保薪資&gt;
+      &lt;生效日期&gt;2018-07-01&lt;/生效日期&gt;
+      &lt;退保日期&gt;2021-03-31&lt;/退保日期&gt;
+      &lt;備註&gt;&lt;/備註&gt;
+      &lt;單位欠費註記&gt;&lt;/單位欠費註記&gt;
+    &lt;/記錄&gt;
+    ...
+  &lt;/勞保就保記錄&gt;
+
+  &lt;國保記錄&gt;
+    &lt;記錄&gt;
+      &lt;序號&gt;1&lt;/序號&gt;
+      &lt;異動別&gt;納保&lt;/異動別&gt;
+      &lt;納退保日期&gt;2012-10-02&lt;/納退保日期&gt;
+      &lt;納退保原因&gt;勞保退保國保納保&lt;/納退保原因&gt;
+      &lt;備註&gt;&lt;/備註&gt;
+    &lt;/記錄&gt;
+    &lt;記錄&gt;
+      &lt;序號&gt;2&lt;/序號&gt;
+      &lt;異動別&gt;退保&lt;/異動別&gt;
+      &lt;納退保日期&gt;2013-06-25&lt;/納退保日期&gt;
+      &lt;納退保原因&gt;勞保加保國保退保&lt;/納退保原因&gt;
+      &lt;備註&gt;&lt;/備註&gt;
+    &lt;/記錄&gt;
+  &lt;/國保記錄&gt;
+
+  &lt;勞退專戶&gt;
+    &lt;累計金額 查詢日期="2026-08-31"&gt;
+      &lt;雇主提繳累計&gt;185320&lt;/雇主提繳累計&gt;
+      &lt;個人自願提繳累計&gt;0&lt;/個人自願提繳累計&gt;
+      &lt;收益累計金額&gt;32150&lt;/收益累計金額&gt;
+    &lt;/累計金額&gt;
+    &lt;提繳異動紀錄&gt;
+      &lt;記錄&gt;
+        &lt;序號&gt;1&lt;/序號&gt;
+        &lt;提繳單位編號&gt;...&lt;/提繳單位編號&gt;
+        &lt;提繳單位名稱&gt;...&lt;/提繳單位名稱&gt;
+        &lt;異動別&gt;4.雇主提繳&lt;/異動別&gt;
+        &lt;生效日期&gt;2005-10-13&lt;/生效日期&gt;
+        &lt;月提繳工資&gt;30300&lt;/月提繳工資&gt;
+        &lt;提繳身份別&gt;1.強制提繳對象&lt;/提繳身份別&gt;
+        &lt;雇主提繳率&gt;6&lt;/雇主提繳率&gt;
+        &lt;個人自願提繳率&gt;&lt;/個人自願提繳率&gt;
+      &lt;/記錄&gt;
+      ...
+    &lt;/提繳異動紀錄&gt;
+  &lt;/勞退專戶&gt;
+&lt;/勞保勞退查詢資料&gt;</pre>
+        <ul class="help">
+          <li>「勞就保投保薪資」是勞保／就保共用的投保薪資級距；「災保投保薪資」是職業災害保險自己的級距（2022 年改制後，職災保險的級距上限比一般勞保高，所以這兩欄數字常常不一樣）。</li>
+          <li>「退保日期」留空代表目前仍在保。同一家公司如果只是調薪，勞保局會列成新的一列、生效日期不同，但通常不會有退保日期——只有真的離職才會填退保日期。</li>
+          <li>「官方投保年資」「官方國保年資」是選填欄位，直接把勞保局總覽頁顯示的年資數字填進去，填了之後總覽頁卡片會優先顯示這個真正準確的數字，不用就留空，系統會改顯示簡易估算值（並註明是估算，不是官方數字）。</li>
+          <li>「國保記錄」是逐筆的納保／退保事件，不是區間——總覽頁會自動把「納保」跟後面最近一筆「退保」配對，算出涵蓋天數；如果最後一筆是「納保」沒有對應退保，會算到今天（代表目前仍在保）。</li>
+          <li>「提繳異動紀錄」裡每次雇主變更或提繳工資調整都會多一筆，雇主提繳率通常固定 6%；當月實際提繳金額大致是「月提繳工資 × 提繳率」，但目前系統沒有自動幫你算出每月金額，只是原樣列出異動紀錄。</li>
+          <li>金額欄位都填純數字，不要加逗號或「元」；用「資料轉換小工具」貼上原始表格時，千分位逗點跟民國日期會自動幫你轉好。</li>
+          <li>用「資料轉換小工具」分頁可以把你複製的表格快速轉成 &lt;記錄&gt; 片段，貼進主檔案就好，不用整段手打。</li>
+          <li>總覽頁的「總投保年資」是從最早一筆生效日期，算到最後一筆的退保日期（或今天，如果還在保）——如果你不同工作之間其實有間隔（例如待業期間），因為原始表格通常不會特別標出這種間隔，這個估算會把間隔也算進去，正式年資還是要以勞保局公告為準。</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   網域模型（Domain Model）
+   把「勞保就保記錄」「國保記錄」「勞退專戶」各自定義成獨立的類別，
+   XML 解析與畫面渲染都只透過這些類別存取資料，方便之後擴充欄位。
+   ========================================================= */
+
+class LaborRecord {
+  constructor({seq, certNo, unit, laborSalary, occSalary, effectiveDate, endDate, note, arrearsNote}) {
+    this.seq = seq || '';
+    this.certNo = certNo || '';                 // 保險證號
+    this.unit = unit || '';                     // 投保單位名稱
+    this.laborSalary = laborSalary !== '' && laborSalary != null ? Number(laborSalary) : null;  // 勞就保投保薪資
+    this.occSalary = occSalary !== '' && occSalary != null ? Number(occSalary) : null;           // 災保投保薪資
+    this.effectiveDate = effectiveDate ? new Date(effectiveDate) : null; // 生效日期
+    this.endDate = endDate ? new Date(endDate) : null;                  // 退保日期
+    this.note = note || '';
+    this.arrearsNote = arrearsNote || '';        // 單位欠費註記
+  }
+  get isActive() { return !this.endDate; }
+  toJSON() {
+    return {
+      seq: this.seq,
+      certNo: this.certNo,
+      unit: this.unit,
+      laborSalary: this.laborSalary,
+      occSalary: this.occSalary,
+      effectiveDate: this.effectiveDate ? this.effectiveDate.toISOString().slice(0,10) : '',
+      endDate: this.endDate ? this.endDate.toISOString().slice(0,10) : '',
+      note: this.note,
+      arrearsNote: this.arrearsNote,
+    };
+  }
+}
+
+class NationalPensionRecord {
+  constructor({seq, changeType, changeDate, reason, note}) {
+    this.seq = seq || '';
+    this.changeType = changeType || '';   // 異動別：納保 / 退保
+    this.changeDate = changeDate ? new Date(changeDate) : null; // 納退保日期
+    this.reason = reason || '';           // 納退保原因
+    this.note = note || '';
+  }
+  toJSON() {
+    return {
+      seq: this.seq,
+      changeType: this.changeType,
+      changeDate: this.changeDate ? this.changeDate.toISOString().slice(0,10) : '',
+      reason: this.reason,
+      note: this.note,
+    };
+  }
+}
+
+class PensionSnapshot {
+  constructor({asOf, employerTotal, selfTotal, earnings}) {
+    this.asOf = asOf || '';
+    this.employerTotal = Number(employerTotal) || 0;
+    this.selfTotal = Number(selfTotal) || 0;
+    this.earnings = Number(earnings) || 0;
+  }
+  get total() { return this.employerTotal + this.selfTotal + this.earnings; }
+  toJSON() {
+    return { asOf: this.asOf, employerTotal: this.employerTotal, selfTotal: this.selfTotal, earnings: this.earnings };
+  }
+}
+
+class PensionContributionChange {
+  constructor({seq, unitNo, unitName, changeType, effectiveDate, wageBase, status, employerRate, selfRate}) {
+    this.seq = seq || '';
+    this.unitNo = unitNo || '';                 // 提繳單位編號
+    this.unitName = unitName || '';              // 提繳單位名稱
+    this.changeType = changeType || '';          // 異動別
+    this.effectiveDate = effectiveDate ? new Date(effectiveDate) : null;
+    this.wageBase = wageBase !== '' && wageBase != null ? Number(wageBase) : null;       // 月提繳工資
+    this.status = status || '';                  // 提繳身份別
+    this.employerRate = employerRate !== '' && employerRate != null ? Number(employerRate) : null; // 雇主提繳率(%)
+    this.selfRate = selfRate !== '' && selfRate != null ? Number(selfRate) : null;       // 個人自願提繳率(%)
+  }
+  toJSON() {
+    return {
+      seq: this.seq,
+      unitNo: this.unitNo,
+      unitName: this.unitName,
+      changeType: this.changeType,
+      effectiveDate: this.effectiveDate ? this.effectiveDate.toISOString().slice(0,10) : '',
+      wageBase: this.wageBase,
+      status: this.status,
+      employerRate: this.employerRate,
+      selfRate: this.selfRate,
+    };
+  }
+}
+
+class PersonalRecordData {
+  constructor() {
+    this.name = '';
+    this.updatedAt = '';
+    this.officialLaborTenure = '';       // 官方公告的勞保/就保投保年資，例如「35年8天」
+    this.officialNationalTenure = '';    // 官方公告的國保年資
+    this.laborRecords = [];
+    this.nationalPensionRecords = [];
+    this.pensionSnapshot = null;
+    this.pensionChanges = []; // 提繳異動紀錄，PensionContributionChange[]
+  }
+
+  // 從「最早一筆生效日期」算到「最後一筆的退保日期，或今天（如果還在保）」。
+  // 注意：如果不同投保單位之間其實有空窗期，這個算法會把空窗期也算進去，
+  // 因為原始表格本身只在真的退保時才會填退保日期，中間的調薪紀錄退保日期通常是空的。
+  get totalLaborDays() {
+    const withDate = this.laborRecords.filter(r => r.effectiveDate);
+    if (!withDate.length) return 0;
+    const minStart = withDate.reduce((min, r) => (!min || r.effectiveDate < min) ? r.effectiveDate : min, null);
+    const latest = [...withDate].sort((a, b) => b.effectiveDate - a.effectiveDate)[0];
+    const end = latest.endDate || new Date();
+    return Math.max(0, Math.round((end - minStart) / 86400000));
+  }
+  // 把「納保」「退保」事件依日期排序、依序配對，計算國保總涵蓋天數。
+  // 如果最後一筆是「納保」且沒有對應的退保，就算到今天（代表目前仍在保）。
+  get totalNationalPensionDays() {
+    const sorted = [...this.nationalPensionRecords]
+      .filter(r => r.changeDate)
+      .sort((a, b) => a.changeDate - b.changeDate);
+    let totalDays = 0, openStart = null;
+    sorted.forEach(r => {
+      if (r.changeType.includes('納')) {
+        if (!openStart) openStart = r.changeDate;
+      } else if (r.changeType.includes('退')) {
+        if (openStart) {
+          totalDays += Math.max(0, Math.round((r.changeDate - openStart) / 86400000));
+          openStart = null;
+        }
+      }
+    });
+    if (openStart) {
+      totalDays += Math.max(0, Math.round((new Date() - openStart) / 86400000));
+    }
+    return totalDays;
+  }
+  get isCurrentlyInsured() {
+    const withDate = this.laborRecords.filter(r => r.effectiveDate);
+    if (!withDate.length) return false;
+    const latest = [...withDate].sort((a, b) => b.effectiveDate - a.effectiveDate)[0];
+    return latest.isActive;
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      updatedAt: this.updatedAt,
+      officialLaborTenure: this.officialLaborTenure,
+      officialNationalTenure: this.officialNationalTenure,
+      laborRecords: this.laborRecords.map(r => r.toJSON()),
+      nationalPensionRecords: this.nationalPensionRecords.map(r => r.toJSON()),
+      pensionSnapshot: this.pensionSnapshot ? this.pensionSnapshot.toJSON() : null,
+      pensionChanges: this.pensionChanges.map(c => c.toJSON()),
+    };
+  }
+
+  // 從 Firestore 存回來的一般 JSON 物件重建成領域物件
+  static fromJSON(obj) {
+    const data = new PersonalRecordData();
+    if (!obj) return data;
+    data.name = obj.name || '';
+    data.updatedAt = obj.updatedAt || '';
+    data.officialLaborTenure = obj.officialLaborTenure || '';
+    data.officialNationalTenure = obj.officialNationalTenure || '';
+    (obj.laborRecords || []).forEach(r => data.laborRecords.push(new LaborRecord(r)));
+    (obj.nationalPensionRecords || []).forEach(r => data.nationalPensionRecords.push(new NationalPensionRecord(r)));
+    data.pensionSnapshot = obj.pensionSnapshot ? new PensionSnapshot(obj.pensionSnapshot) : null;
+    (obj.pensionChanges || []).forEach(c => data.pensionChanges.push(new PensionContributionChange(c)));
+    return data;
+  }
+
+  static fromXML(xmlDoc) {
+    const data = new PersonalRecordData();
+    const text = (parent, tag) => {
+      if (!parent) return '';
+      const el = parent.getElementsByTagName(tag)[0];
+      return el ? el.textContent.trim() : '';
+    };
+
+    const basic = xmlDoc.getElementsByTagName('基本資料')[0];
+    if (basic) {
+      data.name = text(basic, '姓名');
+      data.updatedAt = text(basic, '資料更新日期');
+      data.officialLaborTenure = text(basic, '官方投保年資');
+      data.officialNationalTenure = text(basic, '官方國保年資');
+    }
+
+    const laborRoot = xmlDoc.getElementsByTagName('勞保就保記錄')[0];
+    if (laborRoot) {
+      Array.from(laborRoot.getElementsByTagName('記錄')).forEach(rec => {
+        data.laborRecords.push(new LaborRecord({
+          seq: text(rec, '序號'),
+          certNo: text(rec, '保險證號'),
+          unit: text(rec, '投保單位名稱'),
+          laborSalary: text(rec, '勞就保投保薪資'),
+          occSalary: text(rec, '災保投保薪資'),
+          effectiveDate: text(rec, '生效日期'),
+          endDate: text(rec, '退保日期'),
+          note: text(rec, '備註'),
+          arrearsNote: text(rec, '單位欠費註記'),
+        }));
+      });
+    }
+
+    const npRoot = xmlDoc.getElementsByTagName('國保記錄')[0];
+    if (npRoot) {
+      Array.from(npRoot.getElementsByTagName('記錄')).forEach(rec => {
+        data.nationalPensionRecords.push(new NationalPensionRecord({
+          seq: text(rec, '序號'),
+          changeType: text(rec, '異動別'),
+          changeDate: text(rec, '納退保日期'),
+          reason: text(rec, '納退保原因'),
+          note: text(rec, '備註'),
+        }));
+      });
+    }
+
+    const pensionRoot = xmlDoc.getElementsByTagName('勞退專戶')[0];
+    if (pensionRoot) {
+      const snap = pensionRoot.getElementsByTagName('累計金額')[0];
+      if (snap) {
+        data.pensionSnapshot = new PensionSnapshot({
+          asOf: snap.getAttribute('查詢日期') || '',
+          employerTotal: text(snap, '雇主提繳累計'),
+          selfTotal: text(snap, '個人自願提繳累計'),
+          earnings: text(snap, '收益累計金額'),
+        });
+      }
+      const changeRoot = pensionRoot.getElementsByTagName('提繳異動紀錄')[0];
+      if (changeRoot) {
+        Array.from(changeRoot.getElementsByTagName('記錄')).forEach(rec => {
+          data.pensionChanges.push(new PensionContributionChange({
+            seq: text(rec, '序號'),
+            unitNo: text(rec, '提繳單位編號'),
+            unitName: text(rec, '提繳單位名稱'),
+            changeType: text(rec, '異動別'),
+            effectiveDate: text(rec, '生效日期'),
+            wageBase: text(rec, '月提繳工資'),
+            status: text(rec, '提繳身份別'),
+            employerRate: text(rec, '雇主提繳率'),
+            selfRate: text(rec, '個人自願提繳率'),
+          }));
+        });
+      }
+    }
+    return data;
+  }
+}
+
+/* =========================================================
+   小工具函式
+   ========================================================= */
+function formatYearsMonths(days) {
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  return `${years} 年 ${months} 個月`;
+}
+function formatMoney(n) {
+  return 'NT$ ' + Math.round(n).toLocaleString('zh-Hant-TW');
+}
+function formatDate(d) {
+  if (!d) return '—';
+  return d.toISOString().slice(0, 10);
+}
+function escapeXML(str) {
+  return String(str ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+function splitRow(line) {
+  // 只用 Tab 分隔欄位——金額常常有千分位逗點（例如 544,456），
+  // 如果拿逗號當分隔符號會把一個數字拆成兩欄，所以逗號不能當分隔符號用。
+  return line.split('\t').map(p => p.trim());
+}
+// 民國年日期（例如 069/06/25）轉成西元日期字串；已經是西元格式或空白就原樣傳回
+function rocToISO(s) {
+  s = (s || '').trim();
+  const m = /^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/.exec(s);
+  if (!m) return s;
+  const year = Number(m[1]) + 1911;
+  const month = m[2].padStart(2, '0');
+  const day = m[3].padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+// 去掉金額的千分位逗點，例如 "45,800" -> "45800"
+function stripComma(s) {
+  return (s || '').replace(/,/g, '').trim();
+}
+
+/* =========================================================
+   畫面渲染
+   ========================================================= */
+let currentData = new PersonalRecordData();
+
+function renderAll() {
+  renderOverview();
+  renderLabor();
+  renderNational();
+  renderPension();
+}
+
+function renderOverview() {
+  const d = currentData;
+  const cardsEl = document.getElementById('overviewCards');
+  const latest = [...d.laborRecords].sort((a, b) => (b.effectiveDate||0) - (a.effectiveDate||0))[0];
+
+  cardsEl.innerHTML = `
+    <div class="card">
+      <div class="label">勞保 / 就保總投保年資</div>
+      <div class="value">${d.officialLaborTenure || formatYearsMonths(d.totalLaborDays)}</div>
+      <div class="sub">${d.officialLaborTenure
+          ? '勞保局公告數字' + (d.isCurrentlyInsured ? '・目前在保中' : '')
+          : '系統簡易估算（未計入空窗期），僅供參考・' + (d.isCurrentlyInsured ? '目前在保中' : '目前無在保紀錄')}</div>
+    </div>
+    <div class="card">
+      <div class="label">國保累計期間</div>
+      <div class="value">${d.officialNationalTenure || formatYearsMonths(d.totalNationalPensionDays)}</div>
+      <div class="sub">${d.officialNationalTenure ? '勞保局公告數字' : `共 ${d.nationalPensionRecords.length} 筆記錄（系統估算）`}</div>
+    </div>
+    <div class="card">
+      <div class="label">勞退專戶總金額</div>
+      <div class="value">${d.pensionSnapshot ? formatMoney(d.pensionSnapshot.total) : '—'}</div>
+      <div class="sub">${d.pensionSnapshot ? '查詢日期 ' + d.pensionSnapshot.asOf : '尚無專戶資料'}</div>
+    </div>
+    <div class="card">
+      <div class="label">最新投保單位</div>
+      <div class="value" style="font-size:16px;">${latest ? latest.unit : '—'}</div>
+      <div class="sub">${latest ? '生效日期 ' + formatDate(latest.effectiveDate) : ''}</div>
+    </div>
+  `;
+
+  const body = document.querySelector('#latestLaborTable tbody');
+  const recent = [...d.laborRecords].sort((a, b) => (b.effectiveDate||0) - (a.effectiveDate||0)).slice(0, 5);
+  body.innerHTML = recent.length ? recent.map(r => `
+    <tr>
+      <td>${r.unit}</td>
+      <td>${formatDate(r.effectiveDate)}</td>
+      <td>${r.endDate ? formatDate(r.endDate) : '在保中'}</td>
+      <td>${r.laborSalary ? formatMoney(r.laborSalary) : '—'}</td>
+      <td>${r.occSalary ? formatMoney(r.occSalary) : '—'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">尚無資料</td></tr>';
+}
+
+function renderLabor() {
+  const keyword = document.getElementById('laborSearch').value.trim();
+  const rows = currentData.laborRecords
+    .filter(r => !keyword || r.unit.includes(keyword) || r.certNo.includes(keyword))
+    .sort((a, b) => (b.effectiveDate||0) - (a.effectiveDate||0));
+
+  const body = document.getElementById('laborTableBody');
+  const emptyEl = document.getElementById('laborEmpty');
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.seq}</td>
+      <td>${r.certNo}</td>
+      <td>${r.unit}</td>
+      <td>${r.laborSalary != null ? formatMoney(r.laborSalary) : '—'}</td>
+      <td>${r.occSalary != null ? formatMoney(r.occSalary) : '—'}</td>
+      <td>${formatDate(r.effectiveDate)}</td>
+      <td>${r.endDate ? formatDate(r.endDate) : ''}</td>
+      <td>${r.note || ''}</td>
+      <td>${r.arrearsNote || ''}</td>
+    </tr>`).join('');
+  emptyEl.style.display = rows.length ? 'none' : 'block';
+}
+
+function renderNational() {
+  const rows = [...currentData.nationalPensionRecords].sort((a, b) => (a.changeDate||0) - (b.changeDate||0));
+  const body = document.getElementById('nationalTableBody');
+  const emptyEl = document.getElementById('nationalEmpty');
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.seq}</td>
+      <td>${r.changeType}</td>
+      <td>${formatDate(r.changeDate)}</td>
+      <td>${r.reason}</td>
+      <td>${r.note || ''}</td>
+    </tr>`).join('');
+  emptyEl.style.display = rows.length ? 'none' : 'block';
+}
+
+function renderPension() {
+  const snap = currentData.pensionSnapshot;
+  const cardsEl = document.getElementById('pensionCards');
+  cardsEl.innerHTML = `
+    <div class="card"><div class="label">雇主提繳累計</div><div class="value">${snap ? formatMoney(snap.employerTotal) : '—'}</div></div>
+    <div class="card"><div class="label">個人自願提繳累計</div><div class="value">${snap ? formatMoney(snap.selfTotal) : '—'}</div></div>
+    <div class="card"><div class="label">收益累計金額</div><div class="value">${snap ? formatMoney(snap.earnings) : '—'}</div></div>
+    <div class="card"><div class="label">專戶總金額</div><div class="value">${snap ? formatMoney(snap.total) : '—'}</div></div>
+  `;
+
+  const rows = [...currentData.pensionChanges].sort((a, b) => (b.effectiveDate||0) - (a.effectiveDate||0));
+  const tableBody = document.getElementById('pensionTableBody');
+  const emptyEl = document.getElementById('pensionEmpty');
+
+  tableBody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.seq}</td>
+      <td>${r.unitNo}</td>
+      <td>${r.unitName}</td>
+      <td>${r.changeType}</td>
+      <td>${formatDate(r.effectiveDate)}</td>
+      <td>${r.wageBase != null ? formatMoney(r.wageBase) : '—'}</td>
+      <td>${r.status}</td>
+      <td>${r.employerRate != null ? r.employerRate + '%' : '—'}</td>
+      <td>${r.selfRate != null ? r.selfRate + '%' : '—'}</td>
+    </tr>`).join('');
+  emptyEl.style.display = rows.length ? 'none' : 'block';
+}
+
+/* =========================================================
+   事件綁定
+   ========================================================= */
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+document.getElementById('laborSearch').addEventListener('input', renderLabor);
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const xmlDoc = new DOMParser().parseFromString(reader.result, 'application/xml');
+      if (xmlDoc.getElementsByTagName('parsererror').length) {
+        throw new Error('XML 格式看起來有問題，請檢查標籤是否都有正確關閉。');
+      }
+      currentData = PersonalRecordData.fromXML(xmlDoc);
+      document.getElementById('fileStatus').innerHTML =
+        `已載入 <b>${file.name}</b>　${currentData.name ? '（' + currentData.name + '）' : ''}`;
+      renderAll();
+    } catch (err) {
+      alert('讀取失敗：' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+document.getElementById('btnDownloadSample').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = 'sample-data.xml';
+  a.download = 'sample-data.xml';
+  a.click();
+});
+
+document.getElementById('btnConvert').addEventListener('click', () => {
+  const type = document.getElementById('importType').value;
+  const lines = document.getElementById('importInput').value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) {
+    document.getElementById('importOutput').textContent = '（請先貼上至少一列資料）';
+    return;
+  }
+
+  // 如果完全沒有 Tab，代表貼上的內容很可能不是「一列一筆」的表格資料，
+  // 繼續轉換只會產生對不上欄位的錯誤結果，所以先提醒使用者、不執行轉換。
+  const linesWithTab = lines.filter(l => l.includes('\t')).length;
+  if (linesWithTab === 0) {
+    document.getElementById('importOutput').textContent =
+      '沒有偵測到 Tab 分隔，這通常代表表格結構在複製貼上時已經不見了（每格文字各自變成一行）。\n' +
+      '請先把表格貼到 Google Sheets 或 Excel 整理成一列一筆，再從那裡複製貼過來，才會正確轉換。';
+    return;
+  }
+  if (linesWithTab < lines.length) {
+    document.getElementById('importOutput').textContent =
+      `注意：貼上的 ${lines.length} 行裡，只有 ${linesWithTab} 行有 Tab 分隔，其他行可能不是完整的一列資料，請檢查後再貼一次。`;
+    return;
+  }
+
+  let xml = '';
+  if (type === 'labor') {
+    xml = lines.map(line => {
+      const [seq, certNo, unit, laborSalary, occSalary, effectiveDate, endDate, note, arrearsNote] = splitRow(line);
+      return `<記錄>
+  <序號>${escapeXML(seq)}</序號>
+  <保險證號>${escapeXML(certNo)}</保險證號>
+  <投保單位名稱>${escapeXML(unit)}</投保單位名稱>
+  <勞就保投保薪資>${escapeXML(stripComma(laborSalary))}</勞就保投保薪資>
+  <災保投保薪資>${escapeXML(stripComma(occSalary))}</災保投保薪資>
+  <生效日期>${escapeXML(rocToISO(effectiveDate))}</生效日期>
+  <退保日期>${escapeXML(rocToISO(endDate))}</退保日期>
+  <備註>${escapeXML(note)}</備註>
+  <單位欠費註記>${escapeXML(arrearsNote)}</單位欠費註記>
+</記錄>`;
+    }).join('\n');
+  } else if (type === 'national') {
+    xml = lines.map(line => {
+      const [seq, changeType, changeDate, reason, note] = splitRow(line);
+      return `<記錄>
+  <序號>${escapeXML(seq)}</序號>
+  <異動別>${escapeXML(changeType)}</異動別>
+  <納退保日期>${escapeXML(rocToISO(changeDate))}</納退保日期>
+  <納退保原因>${escapeXML(reason)}</納退保原因>
+  <備註>${escapeXML(note)}</備註>
+</記錄>`;
+    }).join('\n');
+  } else {
+    xml = lines.map(line => {
+      const [seq, unitNo, unitName, changeType, effectiveDate, wageBase, status, employerRate, selfRate] = splitRow(line);
+      return `<記錄>
+  <序號>${escapeXML(seq)}</序號>
+  <提繳單位編號>${escapeXML(unitNo)}</提繳單位編號>
+  <提繳單位名稱>${escapeXML(unitName)}</提繳單位名稱>
+  <異動別>${escapeXML(changeType)}</異動別>
+  <生效日期>${escapeXML(rocToISO(effectiveDate))}</生效日期>
+  <月提繳工資>${escapeXML(stripComma(wageBase))}</月提繳工資>
+  <提繳身份別>${escapeXML(status)}</提繳身份別>
+  <雇主提繳率>${escapeXML(stripComma(employerRate))}</雇主提繳率>
+  <個人自願提繳率>${escapeXML(stripComma(selfRate))}</個人自願提繳率>
+</記錄>`;
+    }).join('\n');
+  }
+  document.getElementById('importOutput').textContent = xml;
+});
+
+/* =========================================================
+   初始化：優先讀網址參數 ?data=，讀不到才用內建範例資料
+   ========================================================= */
+function parseXMLText(text) {
+  const xmlDoc = new DOMParser().parseFromString(text, 'application/xml');
+  if (xmlDoc.getElementsByTagName('parsererror').length) {
+    throw new Error('XML 格式看起來有問題，請檢查標籤是否都有正確關閉。');
+  }
+  return xmlDoc;
+}
+
+async function loadFromURL(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  return parseXMLText(text);
+}
+
+async function loadSample() {
+  const res = await fetch('sample-data.xml');
+  const text = await res.text();
+  return parseXMLText(text);
+}
+
+async function init() {
+  const statusEl = document.getElementById('fileStatus');
+  const dataUrl = new URLSearchParams(window.location.search).get('data');
+
+  if (dataUrl) {
+    try {
+      const xmlDoc = await loadFromURL(dataUrl);
+      currentData = PersonalRecordData.fromXML(xmlDoc);
+      statusEl.innerHTML = `已從網址參數自動載入資料　${currentData.name ? '（' + currentData.name + '）' : ''}`;
+      renderAll();
+      return;
+    } catch (err) {
+      // 自動載入失敗（常見原因：該網址不允許跨站讀取，或網址打錯），
+      // 顯示錯誤訊息後改讀雲端資料，不讓整個頁面壞掉。
+      statusEl.innerHTML =
+        `<span style="color:var(--danger)">從網址參數載入失敗（${err.message}），改讀雲端資料。</span>`;
+    }
+  }
+
+  try {
+    await loadFromCloud();
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:var(--danger)">讀取雲端資料失敗：${err.message}</span>`;
+    currentData = new PersonalRecordData();
+    renderAll();
+  }
+}
+
+/* =========================================================
+   Firebase：登入驗證 + Firestore 雲端讀寫
+   每個登入帳號的整份資料，存成一份文件在 users/{uid}
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyD_Uhqg2zm5L2sZ8dbZdwh4ghZ2oN0-wmg",
+  authDomain: "labor-insurance-and-retirement.firebaseapp.com",
+  projectId: "labor-insurance-and-retirement",
+  storageBucket: "labor-insurance-and-retirement.firebasestorage.app",
+  messagingSenderId: "330777531697",
+  appId: "1:330777531697:web:8910656cf6cdddafc20c10"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
+function showAuthOverlay(show) {
+  document.getElementById('authOverlay').style.display = show ? 'flex' : 'none';
+  document.getElementById('app').style.display = show ? 'none' : 'flex';
+}
+
+function translateAuthError(err) {
+  const map = {
+    'auth/invalid-email': 'Email 格式不對。',
+    'auth/user-not-found': '找不到這個帳號，要不要改點下面「用這組 Email 註冊新帳號」？',
+    'auth/wrong-password': '密碼不對。',
+    'auth/invalid-credential': 'Email 或密碼不對。',
+    'auth/email-already-in-use': '這個 Email 已經註冊過了，請直接按「登入」。',
+    'auth/weak-password': '密碼至少要 6 個字元。',
+  };
+  return map[err.code] || ('發生問題：' + err.message);
+}
+
+async function loadFromCloud(showStatus = true) {
+  const statusEl = document.getElementById('fileStatus');
+  const snap = await db.collection('users').doc(currentUser.uid).get();
+  if (snap.exists) {
+    currentData = PersonalRecordData.fromJSON(snap.data());
+    if (showStatus) statusEl.innerHTML = `已從雲端載入你的資料　${currentData.name ? '（' + currentData.name + '）' : ''}`;
+  } else {
+    currentData = new PersonalRecordData();
+    if (showStatus) statusEl.innerHTML =
+      '雲端目前還沒有你的資料。用「選擇 XML 檔案匯入」或「資料轉換小工具」準備好內容後，按「儲存到雲端」就會存起來。';
+  }
+  renderAll();
+}
+
+async function saveToCloud() {
+  const statusEl = document.getElementById('fileStatus');
+  try {
+    await db.collection('users').doc(currentUser.uid).set(currentData.toJSON());
+    statusEl.innerHTML = '<span style="color:var(--primary-dark)">已儲存到雲端 ✓</span>';
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:var(--danger)">儲存失敗：${err.message}</span>`;
+  }
+}
+
+document.getElementById('btnCloudSave').addEventListener('click', saveToCloud);
+document.getElementById('btnCloudReload').addEventListener('click', () => loadFromCloud(true));
+document.getElementById('btnLogout').addEventListener('click', () => auth.signOut());
+
+document.getElementById('btnSignIn').addEventListener('click', async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const pw = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.style.color = '';
+  errEl.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch (err) {
+    errEl.textContent = translateAuthError(err);
+  }
+});
+
+document.getElementById('btnRegister').addEventListener('click', async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const pw = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.style.color = '';
+  errEl.textContent = '';
+  try {
+    await auth.createUserWithEmailAndPassword(email, pw);
+  } catch (err) {
+    errEl.textContent = translateAuthError(err);
+  }
+});
+
+document.getElementById('btnResetPw').addEventListener('click', async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const errEl = document.getElementById('authError');
+  if (!email) {
+    errEl.style.color = '';
+    errEl.textContent = '請先在上面輸入 Email，再點這裡寄送重設密碼信。';
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    errEl.style.color = 'var(--primary-dark)';
+    errEl.textContent = '重設密碼信已寄出，請去信箱收信。';
+  } catch (err) {
+    errEl.style.color = '';
+    errEl.textContent = translateAuthError(err);
+  }
+});
+
+auth.onAuthStateChanged(async (user) => {
+  currentUser = user;
+  if (user) {
+    showAuthOverlay(false);
+    document.getElementById('userEmailLabel').textContent = user.email;
+    await init();
+  } else {
+    showAuthOverlay(true);
+  }
+});
+</script>
+</body>
+</html>
