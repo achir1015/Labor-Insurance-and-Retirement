@@ -214,6 +214,7 @@
     <button class="nav-btn" data-view="national">國保記錄</button>
     <button class="nav-btn" data-view="pension">勞退個人專戶</button>
     <button class="nav-btn" data-view="import">資料轉換小工具</button>
+    <button class="nav-btn" data-view="monthly">逐月投保薪資資料庫</button>
     <button class="nav-btn" data-view="calc">老年給付試算</button>
     <button class="nav-btn" data-view="help">使用說明</button>
     <div class="sidebar-foot">資料會存進你登入帳號專屬的雲端資料庫，<br>只有你自己登入後看得到。</div>
@@ -324,6 +325,58 @@
 2	09000004H	行政院勞工委員會職業訓練局青年職業訓練中心	6,600	6,600	078/08/05"></textarea>
         <div style="margin:10px 0;"><button class="btn" id="btnConvert">轉換成 XML</button></div>
         <pre id="importOutput">（轉換結果會顯示在這裡）</pre>
+      </div>
+    </section>
+
+    <!-- 逐月投保薪資資料庫 -->
+    <section class="view" id="view-monthly">
+      <div class="panel">
+        <h2>逐月投保薪資資料庫</h2>
+        <p class="note">
+          把「勞保 / 就保記錄」裡每一段任職期間，依生效日期展開成一個月一筆的資料，用來找出全職涯投保薪資最高的
+          60 個月，計算老年給付要用的「平均月投保薪資」。按下方按鈕建立時，永遠會先刪除上一次建立的資料，
+          再依照目前「勞保 / 就保記錄」重新展開一次——不會用你上傳過的 Excel 工作底稿內容，只會用系統裡現有的資料。
+        </p>
+        <ul class="help">
+          <li>如果某段任職有填「退保日期」，就展開到那個月為止；沒填的話，除了最後一段（視為目前在保中，展開到今天），
+            其餘會假設一路延續到下一段任職的生效月份——這中間如果其實有沒加保的空窗期，會被誤當作有投保，
+            想避免的話請先把該段任職的「退保日期」補上再重建。</li>
+          <li>交接月份（前一份工作結束、下一份工作開始剛好同一個月）會出現兩筆，這是正常的，計算最高60個月時
+            系統會自動取那個月薪資較高的一筆，不會讓同一個月被算兩次。</li>
+        </ul>
+        <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" id="btnBuildMonthly">建立 / 重新建立逐月資料</button>
+          <button class="btn secondary" id="btnFillCalcFromMonthly">帶入試算的「平均月投保薪資」</button>
+        </div>
+        <div id="monthlyStatus" class="note" style="display:none;"></div>
+        <div class="cards" id="monthlyCards"></div>
+        <div class="table-scroll" id="monthlyTableWrap" style="display:none;">
+          <h3 style="margin-top:16px;">最高60個月明細（由高至低）</h3>
+          <table>
+            <thead><tr><th>排名</th><th>年月</th><th>投保單位</th><th>保險證號</th><th>投保薪資</th></tr></thead>
+            <tbody id="monthlyTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="monthlyFullWrap" style="display:none;">
+          <h3 style="margin-top:24px;">完整逐月資料（依年月由低到高，含交接月重複）</h3>
+          <div class="toolbar">
+            <select id="monthlyFullPageSize">
+              <option value="20">每頁 20 筆</option>
+              <option value="50" selected>每頁 50 筆</option>
+              <option value="100">每頁 100 筆</option>
+            </select>
+            <button class="btn secondary" id="monthlyFullPrev">‹ 上一頁</button>
+            <span id="monthlyFullPageInfo" style="font-size:13px;color:var(--text-muted);align-self:center;"></span>
+            <button class="btn secondary" id="monthlyFullNext">下一頁 ›</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>年月</th><th>投保單位</th><th>保險證號</th><th>投保薪資</th></tr></thead>
+              <tbody id="monthlyFullTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -474,6 +527,7 @@
           <li>金額欄位都填純數字，不要加逗號或「元」；用「資料轉換小工具」貼上原始表格時，千分位逗點跟民國日期會自動幫你轉好。</li>
           <li>用「資料轉換小工具」分頁可以把你複製的表格快速轉成 &lt;記錄&gt; 片段，貼進主檔案就好，不用整段手打。</li>
           <li>總覽頁的「總投保年資」是從最早一筆生效日期，算到最後一筆的退保日期（或今天，如果還在保）——如果你不同工作之間其實有間隔（例如待業期間），因為原始表格通常不會特別標出這種間隔，這個估算會把間隔也算進去，正式年資還是要以勞保局公告為準。</li>
+          <li>「逐月投保薪資資料庫」分頁會把勞保就保記錄展開成一個月一筆，用來找出最高60個月、算出老年給付試算要用的平均月投保薪資；每次按「建立 / 重新建立」都會整個重算一次，不會累積舊資料，記得算完要按「儲存到雲端」才會留住這份結果。</li>
         </ul>
       </div>
     </section>
@@ -585,6 +639,77 @@ class PersonalRecordData {
     this.nationalPensionRecords = [];
     this.pensionSnapshot = null;
     this.pensionChanges = []; // 提繳異動紀錄，PensionContributionChange[]
+    this.monthlySalaryHistory = []; // 補足連續期間逐月投保薪資，[{yearMonth, certNo, unit, salary}]
+    this.monthlySalaryBuiltAt = ''; // 上次建立此資料庫的時間戳記
+  }
+
+  // 依「勞保就保記錄」重建逐月投保薪資資料庫（會先清空舊的再重建，永遠是全新結果）。
+  // 規則：
+  //  - 每一筆記錄從「生效日期」所在月份開始展開。
+  //  - 如果這筆記錄自己有填「退保日期」，就展開到那個月份為止（包含當月）。
+  //  - 如果沒有退保日期，且不是最後一筆，就假設一路延續到「下一筆記錄生效日期」所在月份（包含當月，
+  //    這個月剛好是交接月，兩筆記錄都會各自出現一次，這是刻意保留的重疊，不是錯誤）。
+  //  - 如果沒有退保日期，且是最後一筆（目前在保中），就展開到「今天」所在月份。
+  //  - 只用勞保／就保這個類別的薪資（勞就保投保薪資），不理會職災保險薪資。
+  rebuildMonthlySalaryHistory() {
+    const records = [...this.laborRecords]
+      .filter(r => r.effectiveDate)
+      .sort((a, b) => a.effectiveDate - b.effectiveDate);
+
+    const history = [];
+    const addMonths = (startDate, endDate, unit, certNo, salary) => {
+      let y = startDate.getFullYear(), m = startDate.getMonth();
+      const endY = endDate.getFullYear(), endM = endDate.getMonth();
+      while (y < endY || (y === endY && m <= endM)) {
+        history.push({
+          yearMonth: `${y}-${String(m + 1).padStart(2, '0')}`,
+          unit, certNo, salary,
+        });
+        m++;
+        if (m > 11) { m = 0; y++; }
+      }
+    };
+
+    records.forEach((r, i) => {
+      if (r.laborSalary == null) return; // 沒有薪資資料的記錄不展開
+      let endBoundary;
+      if (r.endDate) {
+        endBoundary = r.endDate;
+      } else if (i === records.length - 1) {
+        endBoundary = new Date(); // 最後一筆、仍在保中，展開到今天
+      } else {
+        endBoundary = records[i + 1].effectiveDate; // 假設延續到下一筆生效月份（含交接月）
+      }
+      if (endBoundary < r.effectiveDate) return; // 防呆：結束比開始早就跳過
+      addMonths(r.effectiveDate, endBoundary, r.unit, r.certNo, r.laborSalary);
+    });
+
+    this.monthlySalaryHistory = history;
+    this.monthlySalaryBuiltAt = new Date().toISOString();
+    return history;
+  }
+
+  // 依「勞就保投保薪資」由高至低排序，取最高60個月，算出平均月投保薪資。
+  // 同一個月如果因為交接月重複出現兩筆，只取薪資較高的那筆代表這個月，避免同一個月被算兩次。
+  get top60MonthAverage() {
+    const byMonth = new Map();
+    this.monthlySalaryHistory.forEach(row => {
+      const existing = byMonth.get(row.yearMonth);
+      if (!existing || row.salary > existing.salary) byMonth.set(row.yearMonth, row);
+    });
+    const deduped = [...byMonth.values()].sort((a, b) => b.salary - a.salary);
+    const top60 = deduped.slice(0, 60);
+    if (!top60.length) return null;
+    const sum = top60.reduce((s, r) => s + r.salary, 0);
+    // 官方公式是「最高60個月總和 ÷ 60」；如果實際投保月數不滿60個月，
+    // 就只能用實際月數去除，不能除以60（除以60反而會把平均值算低）。
+    const divisor = Math.min(60, top60.length);
+    return {
+      months: top60,
+      monthCount: top60.length,
+      sum,
+      average: Math.round(sum / divisor),
+    };
   }
 
   // 從「最早一筆生效日期」算到「最後一筆的退保日期，或今天（如果還在保）」。
@@ -637,6 +762,8 @@ class PersonalRecordData {
       nationalPensionRecords: this.nationalPensionRecords.map(r => r.toJSON()),
       pensionSnapshot: this.pensionSnapshot ? this.pensionSnapshot.toJSON() : null,
       pensionChanges: this.pensionChanges.map(c => c.toJSON()),
+      monthlySalaryHistory: this.monthlySalaryHistory,
+      monthlySalaryBuiltAt: this.monthlySalaryBuiltAt,
     };
   }
 
@@ -652,6 +779,8 @@ class PersonalRecordData {
     (obj.nationalPensionRecords || []).forEach(r => data.nationalPensionRecords.push(new NationalPensionRecord(r)));
     data.pensionSnapshot = obj.pensionSnapshot ? new PensionSnapshot(obj.pensionSnapshot) : null;
     (obj.pensionChanges || []).forEach(c => data.pensionChanges.push(new PensionContributionChange(c)));
+    data.monthlySalaryHistory = obj.monthlySalaryHistory || [];
+    data.monthlySalaryBuiltAt = obj.monthlySalaryBuiltAt || '';
     return data;
   }
 
@@ -781,7 +910,87 @@ function renderAll() {
   renderLabor();
   renderNational();
   renderPension();
+  renderMonthly();
   renderCalcDefaults();
+}
+
+let monthlyFullPage = 1; // 完整逐月資料的分頁狀態
+
+function renderMonthly() {
+  const d = currentData;
+  const statusEl = document.getElementById('monthlyStatus');
+  const cardsEl = document.getElementById('monthlyCards');
+  const wrapEl = document.getElementById('monthlyTableWrap');
+  const bodyEl = document.getElementById('monthlyTableBody');
+  const fullWrapEl = document.getElementById('monthlyFullWrap');
+
+  if (!d.monthlySalaryHistory.length) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = '目前還沒有逐月資料，按上面的「建立 / 重新建立逐月資料」產生。';
+    cardsEl.innerHTML = '';
+    wrapEl.style.display = 'none';
+    fullWrapEl.style.display = 'none';
+    return;
+  }
+
+  const top60 = d.top60MonthAverage;
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `上次建立時間：${d.monthlySalaryBuiltAt ? new Date(d.monthlySalaryBuiltAt).toLocaleString('zh-Hant-TW') : '—'}　共展開 ${d.monthlySalaryHistory.length} 筆月資料（含交接月重複）。`;
+
+  cardsEl.innerHTML = `
+    <div class="card">
+      <div class="label">最高${top60 ? top60.monthCount : 0}個月加總</div>
+      <div class="value">${top60 ? formatMoney(top60.sum) : '—'}</div>
+    </div>
+    <div class="card">
+      <div class="label">平均月投保薪資</div>
+      <div class="value">${top60 ? formatMoney(top60.average) : '—'}</div>
+      <div class="sub">${top60 && top60.monthCount < 60 ? `實際投保未滿60個月，除以 ${top60.monthCount} 個月計算` : '總和 ÷ 60'}</div>
+    </div>
+  `;
+
+  if (top60) {
+    wrapEl.style.display = 'block';
+    bodyEl.innerHTML = top60.months.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${r.yearMonth}</td>
+        <td>${r.unit}</td>
+        <td>${r.certNo}</td>
+        <td>${formatMoney(r.salary)}</td>
+      </tr>`).join('');
+  } else {
+    wrapEl.style.display = 'none';
+  }
+
+  fullWrapEl.style.display = 'block';
+  renderMonthlyFullTable();
+}
+
+function renderMonthlyFullTable() {
+  const d = currentData;
+  const pageSize = Number(document.getElementById('monthlyFullPageSize').value) || 50;
+  const sorted = [...d.monthlySalaryHistory].sort((a, b) => a.yearMonth < b.yearMonth ? -1 : (a.yearMonth > b.yearMonth ? 1 : 0));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  if (monthlyFullPage > totalPages) monthlyFullPage = totalPages;
+  if (monthlyFullPage < 1) monthlyFullPage = 1;
+
+  const start = (monthlyFullPage - 1) * pageSize;
+  const pageRows = sorted.slice(start, start + pageSize);
+
+  document.getElementById('monthlyFullTableBody').innerHTML = pageRows.map(r => `
+    <tr>
+      <td>${r.yearMonth}</td>
+      <td>${r.unit}</td>
+      <td>${r.certNo}</td>
+      <td>${formatMoney(r.salary)}</td>
+    </tr>`).join('');
+
+  document.getElementById('monthlyFullPageInfo').textContent =
+    `第 ${monthlyFullPage} 頁，共 ${totalPages} 頁　第 ${sorted.length ? start + 1 : 0}–${Math.min(start + pageSize, sorted.length)} 筆，共 ${sorted.length} 筆`;
+
+  document.getElementById('monthlyFullPrev').disabled = monthlyFullPage <= 1;
+  document.getElementById('monthlyFullNext').disabled = monthlyFullPage >= totalPages;
 }
 
 function renderCalcDefaults() {
@@ -931,8 +1140,9 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
         throw new Error('XML 格式看起來有問題，請檢查標籤是否都有正確關閉。');
       }
       currentData = PersonalRecordData.fromXML(xmlDoc);
+      isDirty = true; // 剛匯入的內容還沒存進雲端
       document.getElementById('fileStatus').innerHTML =
-        `已載入 <b>${file.name}</b>　${currentData.name ? '（' + currentData.name + '）' : ''}`;
+        `已載入 <b>${file.name}</b>　${currentData.name ? '（' + currentData.name + '）' : ''}　（記得按「儲存到雲端」，否則畫面被切走或重新整理會不見）`;
       renderAll();
     } catch (err) {
       alert('讀取失敗：' + err.message);
@@ -1084,6 +1294,47 @@ function calcOldAgeBenefit() {
 }
 document.getElementById('btnCalc').addEventListener('click', calcOldAgeBenefit);
 
+document.getElementById('btnBuildMonthly').addEventListener('click', async () => {
+  currentData.rebuildMonthlySalaryHistory(); // 內部會先整個覆蓋掉舊的陣列，等同於「先刪除再建立」
+  monthlyFullPage = 1;
+  renderMonthly();
+  // 建好立刻自動存到雲端，不用另外按「儲存到雲端」——避免畫面被意外重新整理或
+  // 帳號重新驗證觸發重新載入時，剛算好的結果還沒存就不見了。
+  const statusEl = document.getElementById('fileStatus');
+  statusEl.textContent = '已重新建立逐月投保薪資資料，正在自動存到雲端…';
+  try {
+    await saveToCloud();
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:var(--danger)">逐月資料已建立，但自動儲存失敗：${err.message}，請手動按「儲存到雲端」。</span>`;
+  }
+});
+
+document.getElementById('btnFillCalcFromMonthly').addEventListener('click', () => {
+  const top60 = currentData.top60MonthAverage;
+  if (!top60) {
+    alert('請先在本頁按「建立 / 重新建立逐月資料」，才能算出最高60個月平均。');
+    return;
+  }
+  document.getElementById('calcAvgSalary60').value = top60.average;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+  document.querySelector('.nav-btn[data-view="calc"]').classList.add('active');
+  document.getElementById('view-calc').classList.add('active');
+});
+
+document.getElementById('monthlyFullPageSize').addEventListener('change', () => {
+  monthlyFullPage = 1;
+  renderMonthlyFullTable();
+});
+document.getElementById('monthlyFullPrev').addEventListener('click', () => {
+  monthlyFullPage--;
+  renderMonthlyFullTable();
+});
+document.getElementById('monthlyFullNext').addEventListener('click', () => {
+  monthlyFullPage++;
+  renderMonthlyFullTable();
+});
+
 /* =========================================================
    初始化：優先讀網址參數 ?data=，讀不到才用內建範例資料
    ========================================================= */
@@ -1152,6 +1403,27 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
+// 記錄「畫面上是否有還沒存進雲端的變動」。瀏覽器本身有時候會在背景把閒置太久的分頁
+// 直接釋放掉再重新載入（俗稱記憶體回收/分頁休眠），這不是這個網頁自己在重新整理，
+// 而是瀏覽器的省資源機制，網頁本身無法阻止；能做的是在畫面「被切到背景、可能隨時被收掉」
+// 的當下，只要有未存檔的變動就自動存一次，這樣就算真的被收掉重載，資料也不會不見。
+let isDirty = false;
+
+// 安全網：畫面被切到背景（換分頁、切到別的視窗、瀏覽器準備把分頁收掉）的當下，
+// 如果有還沒存進雲端的變動，就自動存一次。就算瀏覽器真的把這個分頁釋放掉、
+// 之後又重新載入一次（看起來就像「畫面不定期重新整理」），資料也已經先存到雲端了。
+function autoSaveIfDirty() {
+  if (isDirty && currentUser) {
+    // 這裡是分頁即將被隱藏/卸載的當下，saveToCloud() 是非同步的，
+    // 瀏覽器不一定會等它完成，但 Firestore 的寫入通常會在極短時間內送出，
+    // 已經比完全不存好很多；同時失敗也不彈訊息，避免在卸載過程中出錯。
+    saveToCloud().catch(() => {});
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') autoSaveIfDirty();
+});
+window.addEventListener('pagehide', autoSaveIfDirty);
 
 function showAuthOverlay(show) {
   document.getElementById('authOverlay').style.display = show ? 'flex' : 'none';
@@ -1181,6 +1453,7 @@ async function loadFromCloud(showStatus = true) {
     if (showStatus) statusEl.innerHTML =
       '雲端目前還沒有你的資料。用「選擇 XML 檔案匯入」或「資料轉換小工具」準備好內容後，按「儲存到雲端」就會存起來。';
   }
+  isDirty = false; // 剛從雲端讀回來，畫面跟雲端是一致的，沒有未存檔的變動
   renderAll();
 }
 
@@ -1188,6 +1461,7 @@ async function saveToCloud() {
   const statusEl = document.getElementById('fileStatus');
   try {
     await db.collection('users').doc(currentUser.uid).set(currentData.toJSON());
+    isDirty = false;
     statusEl.innerHTML = '<span style="color:var(--primary-dark)">已儲存到雲端 ✓</span>';
   } catch (err) {
     statusEl.innerHTML = `<span style="color:var(--danger)">儲存失敗：${err.message}</span>`;
@@ -1242,13 +1516,21 @@ document.getElementById('btnResetPw').addEventListener('click', async () => {
   }
 });
 
+// Firebase 的 onAuthStateChanged 除了登入/登出時會觸發，偶爾也會在背景（例如分頁重新取得焦點、
+// 權杖自動更新）無預警再觸發一次；如果每次都重新呼叫 init() 從雲端整個蓋回來，
+// 畫面上任何「已經算好但還沒按儲存」的東西（例如剛建立好的逐月資料）就會憑空消失。
+// 這裡記住「已經幫哪個帳號載入過一次」，同一個帳號的重複觸發就直接跳過，不重新蓋掉畫面。
+let loadedForUid = null;
 auth.onAuthStateChanged(async (user) => {
   currentUser = user;
   if (user) {
     showAuthOverlay(false);
     document.getElementById('userEmailLabel').textContent = user.email;
+    if (loadedForUid === user.uid) return; // 同一帳號的重複觸發，資料已經在畫面上了，不用重讀
+    loadedForUid = user.uid;
     await init();
   } else {
+    loadedForUid = null;
     showAuthOverlay(true);
   }
 });
